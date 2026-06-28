@@ -10,6 +10,7 @@ Claude Opus 4.8 + Streamlit
 import streamlit as st
 import anthropic
 import json
+import os
 
 MODEL = "claude-opus-4-8"
 
@@ -867,14 +868,19 @@ def main():
 </div>
 """, unsafe_allow_html=True)
 
-    # API key in sidebar
+    # API key: Streamlit Cloud secret > sidebar input
+    env_key = st.secrets.get("ANTHROPIC_API_KEY", "") or os.environ.get("ANTHROPIC_API_KEY", "")
     with st.sidebar:
         api_key = st.text_input("Anthropic API Key", type="password",
-                                help="Required for AI assistant. sk-ant-…",
+                                value="",
+                                help="Only needed if running locally. sk-ant-…",
                                 key="api_key_input")
-        if not api_key:
+        if not api_key and not env_key:
             st.caption("👆 Add API key to activate the AI assistant.")
+        elif env_key and not api_key:
+            st.caption("✓ API key configured.")
 
+    api_key = api_key or env_key
     client = anthropic.Anthropic(api_key=api_key) if api_key else None
 
     tab1, tab2 = st.tabs(["📖  What is Hosted Catalog?", "🛒  Browse & Build Catalog"])
