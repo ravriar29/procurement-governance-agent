@@ -407,8 +407,10 @@ div.chat-send-btn > div > button {
 div[data-testid="stTextArea"] textarea {
     border: 1px solid #ddd !important;
     border-radius: 4px !important;
-    font-size: 0.85rem !important;
+    font-size: 0.82rem !important;
     background: #fff !important;
+    color: #0F1111 !important;
+    line-height: 1.5 !important;
 }
 div[data-testid="stTextInput"] input {
     border: 1px solid #ddd !important;
