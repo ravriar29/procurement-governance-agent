@@ -54,7 +54,16 @@ CSS = """
 /* ── Global: Amazon Business light theme ── */
 #MainMenu, footer, header {visibility: hidden;}
 .stApp { background: #F2F0EB !important; }
-.block-container { padding-top: 0 !important; max-width: 1200px !important; }
+.block-container { padding-top: 0 !important; max-width: 1300px !important; }
+
+/* ── Fix all Streamlit headings to be dark ── */
+h1, h2, h3, h4,
+.stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4,
+[data-testid="stMarkdownContainer"] h1,
+[data-testid="stMarkdownContainer"] h2,
+[data-testid="stMarkdownContainer"] h3 {
+    color: #0F1111 !important;
+}
 
 /* ── Sidebar (left filter panel) ── */
 section[data-testid="stSidebar"] {
@@ -207,52 +216,27 @@ section[data-testid="stSidebar"] h3 { color: #111 !important; }
 .cat-item-price { color: #B12704; font-weight: 700; white-space: nowrap; }
 .cat-total { font-size: 0.85rem; font-weight: 700; color: #0F1111; margin-top: 8px; display: flex; justify-content: space-between; }
 
-/* ── Chat widget ── */
-.chat-widget-wrapper {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    z-index: 1000;
-    font-family: -apple-system, sans-serif;
-}
-.chat-bubble-btn {
-    background: #E47911;
-    color: #fff;
-    border: none;
-    border-radius: 50px;
-    padding: 12px 20px;
-    font-size: 0.85rem;
-    font-weight: 700;
-    cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
+/* ── Chat panel (persistent right column) ── */
 .chat-panel {
     background: #fff;
     border: 1px solid #ddd;
-    border-radius: 12px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.18);
-    width: 360px;
-    max-height: 500px;
+    border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.10);
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    height: 100%;
 }
 .chat-panel-header {
     background: #232F3E;
     color: #fff;
-    padding: 12px 16px;
+    padding: 12px 14px;
     font-size: 0.85rem;
     font-weight: 700;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    border-radius: 10px 10px 0 0;
 }
-.chat-panel-header span { font-size: 0.75rem; color: #aaa; font-weight: 400; }
+.chat-panel-header .chat-sub { font-size: 0.72rem; color: #aaa; font-weight: 400; margin-top: 1px; }
 .chat-msgs {
-    flex: 1;
     overflow-y: auto;
     padding: 12px;
     display: flex;
@@ -349,7 +333,8 @@ section[data-testid="stSidebar"] h3 { color: #111 !important; }
 .stat-num { font-size: 2rem; font-weight: 800; color: #E47911; }
 .stat-label { font-size: 0.78rem; color: #555; margin-top: 4px; }
 
-/* ── Streamlit overrides ── */
+/* ── Streamlit button overrides ── */
+/* Default: yellow Amazon "Add to Cart" style */
 .stButton > button {
     background: #FFD814 !important;
     color: #111 !important;
@@ -357,8 +342,38 @@ section[data-testid="stSidebar"] h3 { color: #111 !important; }
     border-radius: 20px !important;
     font-weight: 600 !important;
     font-size: 0.78rem !important;
+    width: 100% !important;
 }
 .stButton > button:hover { background: #F0C14B !important; }
+/* Orange "catalog" buttons: wrap in a div.catalog-btn */
+div.catalog-btn > div > button {
+    background: #E47911 !important;
+    color: #fff !important;
+    border: 1px solid #C96A09 !important;
+    border-radius: 20px !important;
+    font-weight: 600 !important;
+    font-size: 0.73rem !important;
+    width: 100% !important;
+}
+div.catalog-btn > div > button:hover { background: #C96A09 !important; }
+/* Green "in catalog" buttons: wrap in div.in-catalog-btn */
+div.in-catalog-btn > div > button {
+    background: #E7F4E4 !important;
+    color: #007600 !important;
+    border: 1px solid #007600 !important;
+    border-radius: 20px !important;
+    font-weight: 600 !important;
+    font-size: 0.73rem !important;
+    width: 100% !important;
+}
+/* Chat send button */
+div.chat-send-btn > div > button {
+    background: #E47911 !important;
+    color: #fff !important;
+    border: 1px solid #C96A09 !important;
+    border-radius: 4px !important;
+    width: 100% !important;
+}
 div[data-testid="stTextArea"] textarea {
     border: 1px solid #ddd !important;
     border-radius: 4px !important;
@@ -543,96 +558,113 @@ def page_overview():
 
 
 def page_browse(client, api_key):
-    """Product browsing grid with floating AI chat."""
+    """Product browsing (left) + persistent AI chat panel (right)."""
 
-    # ── Left sidebar: filters + catalog summary ────────────────────────────
+    # ── Session state init ────────────────────────────────────────────────
+    for key, default in [
+        ("messages", []), ("catalog_ids", []), ("qty_map", {}),
+        ("requirements", {}), ("ai_products", []), ("cart_ids", []),
+    ]:
+        if key not in st.session_state:
+            st.session_state[key] = default
+
+    catalog_ids  = st.session_state.catalog_ids
+    qty_map      = st.session_state.qty_map
+    requirements = st.session_state.requirements
+
+    # ── Left sidebar: filters ─────────────────────────────────────────────
     with st.sidebar:
         st.markdown("### 🔍 Filter Results")
         selected_cats = []
         for cat in ALL_CATEGORIES:
             if st.checkbox(cat, value=True, key=f"cat_{cat}"):
                 selected_cats.append(cat)
-
         st.markdown("---")
-        max_price = st.slider("Max unit price ($)", 25, 1500, 1500, 25)
-        avail_only = st.checkbox("Show available-now only", value=False)
-
+        max_price  = st.slider("Max unit price ($)", 25, 1500, 1500, 25)
+        avail_only = st.checkbox("Show In Stock only", value=False)
         st.markdown("---")
-        st.markdown("### 🗂️ My Catalog")
-        catalog_ids  = st.session_state.get("catalog_ids", [])
-        qty_map      = st.session_state.get("qty_map", {})
-        requirements = st.session_state.get("requirements", {})
 
+        # Cart summary
+        cart_ids = st.session_state.cart_ids
+        if cart_ids:
+            st.markdown("### 🛒 Cart")
+            cart_total = 0
+            for pid in cart_ids:
+                prod = CATALOG_BY_ID.get(pid)
+                if not prod: continue
+                qty = qty_map.get(pid, 1)
+                line = prod["unit_price"] * qty
+                cart_total += line
+                short = prod["title"][:28] + "…" if len(prod["title"]) > 28 else prod["title"]
+                st.markdown(f'<div class="cat-item"><div class="cat-item-name">{prod["img"]} {short}</div><div class="cat-item-price">${line:,.0f}</div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="cat-total"><span>Cart Total</span><span style="color:#B12704">${cart_total:,.0f}</span></div>', unsafe_allow_html=True)
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("Proceed to Checkout →", use_container_width=True):
+                st.success("Redirecting to Amazon Business checkout…")
+            st.markdown("---")
+
+        # Catalog summary
         if catalog_ids:
-            total = 0
-            sourcing = 0
+            st.markdown("### 🗂️ My Hosted Catalog")
+            cat_total = 0; sourcing = 0
             for pid in catalog_ids:
                 prod = CATALOG_BY_ID.get(pid)
                 if not prod: continue
-                qty   = qty_map.get(pid, 1)
-                line  = prod["unit_price"] * qty
-                total += line
+                qty = qty_map.get(pid, 1)
+                line = prod["unit_price"] * qty
+                cat_total += line
                 if prod["availability"] == "sourcing": sourcing += 1
-                st.markdown(f"""
-<div class="cat-item">
-  <div class="cat-item-name">{prod['img']} {prod['title'][:30]}…</div>
-  <div class="cat-item-price">${line:,.0f}</div>
-</div>""", unsafe_allow_html=True)
-            st.markdown(f"""
-<div class="cat-total">
-  <span>Contract Value</span>
-  <span style="color:#B12704">${total:,.0f}</span>
-</div>""", unsafe_allow_html=True)
+                short = prod["title"][:28] + "…" if len(prod["title"]) > 28 else prod["title"]
+                st.markdown(f'<div class="cat-item"><div class="cat-item-name">{prod["img"]} {short}</div><div class="cat-item-price">${line:,.0f}</div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="cat-total"><span>Contract Value</span><span style="color:#B12704">${cat_total:,.0f}</span></div>', unsafe_allow_html=True)
             if sourcing:
                 st.caption(f"⏳ {sourcing} item(s) need vendor negotiation")
-
             st.markdown("<br>", unsafe_allow_html=True)
             if st.button("✅ Activate Catalog", use_container_width=True):
-                st.success("Catalog submitted to Amazon Business! Your vendor team will follow up within 24 hours.")
-        else:
-            st.caption("Use the AI assistant (bottom right) or browse and add items below.")
+                st.success("Submitted to Amazon Business! Your vendor team will follow up within 24 hours.")
+            if st.button("🗑️ Clear Catalog", use_container_width=True):
+                st.session_state.catalog_ids = []; st.session_state.qty_map = {}; st.rerun()
 
-        if catalog_ids and st.button("🗑️ Clear Catalog", use_container_width=True):
-            st.session_state.catalog_ids = []
-            st.session_state.qty_map     = {}
-            st.rerun()
+    # ── Main layout: product grid (left) + AI chat (right) ───────────────
+    col_products, col_chat = st.columns([3, 1], gap="medium")
 
-    # ── Product grid ────────────────────────────────────────────────────────
-    filtered = [p for p in CATALOG
-                if p["category"] in selected_cats
-                and p["unit_price"] <= max_price
-                and (not avail_only or p["availability"] == "available")]
+    # ── Product grid ──────────────────────────────────────────────────────
+    with col_products:
+        filtered = [p for p in CATALOG
+                    if p["category"] in selected_cats
+                    and p["unit_price"] <= max_price
+                    and (not avail_only or p["availability"] == "available")]
 
-    # If AI has surfaced specific products, pin them to top
-    ai_products = st.session_state.get("ai_products", [])
-    if ai_products:
-        pinned = [p for p in CATALOG if p["id"] in ai_products]
-        rest   = [p for p in filtered if p["id"] not in ai_products]
-        filtered = pinned + [p for p in rest if p not in pinned]
+        ai_products = st.session_state.ai_products
+        if ai_products:
+            pinned   = [p for p in CATALOG if p["id"] in ai_products]
+            rest     = [p for p in filtered if p["id"] not in ai_products]
+            filtered = pinned + [p for p in rest if p not in pinned]
 
-    headcount = requirements.get("headcount", 1) or 1
+        headcount = requirements.get("headcount", 1) or 1
+        ai_note   = ' &nbsp;·&nbsp; <span style="color:#E47911;font-weight:600">✨ AI picks shown first</span>' if ai_products else ""
 
-    st.markdown(f"""
-<div style="font-size:0.82rem;color:#555;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #ddd">
-  1–{min(len(filtered), 48)} of <strong>{len(filtered)}</strong> results
-  {f'<span style="margin-left:12px;color:#E47911;font-weight:600">✨ AI-recommended items shown first</span>' if ai_products else ''}
+        st.markdown(f"""
+<div style="font-size:0.82rem;color:#555;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #ddd">
+  1–{min(len(filtered),18)} of <strong>{len(filtered)}</strong> results{ai_note}
 </div>""", unsafe_allow_html=True)
 
-    cols_per_row = 3
-    rows = [filtered[i:i+cols_per_row] for i in range(0, min(len(filtered), 18), cols_per_row)]
+        cols_per_row = 2
+        rows = [filtered[i:i+cols_per_row] for i in range(0, min(len(filtered), 18), cols_per_row)]
 
-    for row in rows:
-        cols = st.columns(cols_per_row, gap="small")
-        for col, prod in zip(cols, row):
-            with col:
-                pid        = prod["id"]
-                in_catalog = pid in st.session_state.get("catalog_ids", [])
-                qty        = qty_map.get(pid, headcount)
+        for row in rows:
+            pcols = st.columns(cols_per_row, gap="small")
+            for pcol, prod in zip(pcols, row):
+                with pcol:
+                    pid        = prod["id"]
+                    in_catalog = pid in catalog_ids
+                    in_cart    = pid in st.session_state.cart_ids
+                    qty        = qty_map.get(pid, headcount)
 
-                avail_html = '<div class="prod-avail-yes">✓ In Stock</div>' if prod["availability"] == "available" else '<div class="prod-avail-sourcing">⏳ Needs Sourcing</div>'
-                lead_html  = f'<div style="font-size:0.7rem;color:#666">Ships in {prod["lead_days"]} days</div>' if prod.get("lead_days") else '<div style="font-size:0.7rem;color:#B7791F">Contact vendor for availability</div>'
+                    avail_html = '<div class="prod-avail-yes">✓ In Stock</div>' if prod["availability"] == "available" else '<div class="prod-avail-sourcing">⏳ Needs Sourcing</div>'
+                    lead_html  = f'<div style="font-size:0.7rem;color:#666">Ships in {prod["lead_days"]} days</div>' if prod.get("lead_days") else '<div style="font-size:0.7rem;color:#B7791F">Contact vendor for availability</div>'
 
-                st.markdown(f"""
+                    st.markdown(f"""
 <div class="prod-card">
   <div class="prod-img-box">{prod['img']}</div>
   <div class="prod-title">{prod['title']}</div>
@@ -640,131 +672,128 @@ def page_browse(client, api_key):
   <div class="prod-reviews">{prod['reviews']:,} business ratings</div>
   <div style="margin:6px 0"><span class="prod-bizprice-label">Business Price</span></div>
   <div class="prod-price">${prod['unit_price']:,.2f} <span class="prod-per-unit">/ unit</span></div>
-  <div style="font-size:0.72rem;color:#555">×{qty:,} = ${prod['unit_price']*qty:,.0f} total</div>
+  <div style="font-size:0.72rem;color:#555;margin-bottom:4px">×{qty:,} = ${prod['unit_price']*qty:,.0f} total</div>
   {avail_html}{lead_html}
 </div>""", unsafe_allow_html=True)
 
-                if in_catalog:
-                    if st.button("✓ In Catalog", key=f"rem_{pid}", use_container_width=True):
-                        st.session_state.catalog_ids.remove(pid)
-                        st.rerun()
-                else:
-                    if st.button("＋ Add to Catalog", key=f"add_{pid}", use_container_width=True):
-                        if "catalog_ids" not in st.session_state:
-                            st.session_state.catalog_ids = []
-                        st.session_state.catalog_ids.append(pid)
-                        st.session_state.qty_map[pid] = headcount
+                    # Add to Cart (primary yellow button)
+                    cart_label = "✓ In Cart" if in_cart else "🛒 Add to Cart"
+                    if st.button(cart_label, key=f"cart_{pid}", use_container_width=True):
+                        if in_cart:
+                            st.session_state.cart_ids.remove(pid)
+                        else:
+                            st.session_state.cart_ids.append(pid)
+                            st.session_state.qty_map[pid] = qty
                         st.rerun()
 
-    # ── Floating AI chat button & panel ────────────────────────────────────
-    if not api_key:
+                    # Add to Catalog (secondary orange button)
+                    if in_catalog:
+                        st.markdown('<div class="in-catalog-btn">', unsafe_allow_html=True)
+                        if st.button("✓ In Catalog", key=f"rem_{pid}", use_container_width=True):
+                            st.session_state.catalog_ids.remove(pid)
+                            st.rerun()
+                        st.markdown("</div>", unsafe_allow_html=True)
+                    else:
+                        st.markdown('<div class="catalog-btn">', unsafe_allow_html=True)
+                        if st.button("＋ Add to Catalog", key=f"add_{pid}", use_container_width=True):
+                            st.session_state.catalog_ids.append(pid)
+                            st.session_state.qty_map[pid] = qty
+                            st.rerun()
+                        st.markdown("</div>", unsafe_allow_html=True)
+
+    # ── AI Chat panel (persistent right column) ───────────────────────────
+    with col_chat:
         st.markdown("""
-<div style="position:fixed;bottom:24px;right:24px;z-index:999;background:#E47911;color:#fff;
-    border-radius:50px;padding:12px 20px;font-size:0.85rem;font-weight:700;
-    box-shadow:0 4px 12px rgba(0,0,0,0.25);display:flex;align-items:center;gap:8px">
-  💬 AI Catalog Assistant &nbsp;·&nbsp; <span style="font-weight:400;font-size:0.78rem">Add API key to activate</span>
+<div style="background:#232F3E;color:#fff;padding:12px 14px;border-radius:10px 10px 0 0;margin-bottom:0">
+  <div style="font-size:0.88rem;font-weight:700">💬 AI Catalog Assistant</div>
+  <div style="font-size:0.72rem;color:#aaa;margin-top:2px">Powered by Claude Opus 4.8</div>
+</div>
+<div style="background:#fff;border:1px solid #ddd;border-top:none;border-radius:0 0 10px 10px;padding:12px;min-height:200px">
+""", unsafe_allow_html=True)
+
+        if not api_key:
+            st.markdown("""
+<div style="font-size:0.78rem;color:#555;text-align:center;padding:20px 8px">
+  Add your Anthropic API key in the sidebar to activate the AI assistant.
 </div>""", unsafe_allow_html=True)
-        return
-
-    # Chat toggle
-    if "chat_open" not in st.session_state:
-        st.session_state.chat_open = False
-    if "messages"    not in st.session_state: st.session_state.messages    = []
-    if "catalog_ids" not in st.session_state: st.session_state.catalog_ids = []
-    if "qty_map"     not in st.session_state: st.session_state.qty_map     = {}
-    if "requirements"not in st.session_state: st.session_state.requirements = {}
-    if "ai_products" not in st.session_state: st.session_state.ai_products  = []
-
-    # Render floating button (visible when chat closed)
-    if not st.session_state.chat_open:
-        st.markdown("""
-<div style="position:fixed;bottom:24px;right:24px;z-index:999;pointer-events:none">
-  <div style="background:#E47911;color:#fff;border-radius:50px;padding:12px 20px;
-      font-size:0.85rem;font-weight:700;box-shadow:0 4px 12px rgba(0,0,0,0.25);
-      display:flex;align-items:center;gap:8px;pointer-events:none">
-    💬 AI Catalog Assistant
-  </div>
+        else:
+            # Chat messages
+            if not st.session_state.messages:
+                st.markdown("""
+<div style="font-size:0.78rem;color:#555;line-height:1.5;margin-bottom:10px">
+  Tell me what your company needs — employees, categories, budget, timeline — and I'll find the right items.
 </div>""", unsafe_allow_html=True)
-
-        # Real Streamlit button overlaid (using columns trick)
-        _, btn_col = st.columns([4, 1])
-        with btn_col:
-            if st.button("💬 Open AI Assistant", key="open_chat", use_container_width=True):
-                st.session_state.chat_open = True
-                st.rerun()
-    else:
-        # Chat panel open
-        st.markdown("---")
-        st.markdown("### 💬 AI Catalog Assistant")
-        st.caption("Describe what your company needs and I'll find the right items for your catalog.")
-
-        # Show chat history
-        for msg in st.session_state.messages:
-            if msg["role"] == "user":
-                st.markdown(f'<div class="msg-user">{msg["content"]}</div>', unsafe_allow_html=True)
+                # Quick prompts
+                for i, prompt in enumerate(QUICK_PROMPTS):
+                    label = ["🏃 Nike WFH", "🏥 Hospital", "🚀 Tech Startup"][i]
+                    st.markdown('<div class="catalog-btn">', unsafe_allow_html=True)
+                    if st.button(label, key=f"qp_{i}", use_container_width=True):
+                        st.session_state["chat_prefill"] = prompt
+                        st.rerun()
+                    st.markdown("</div>", unsafe_allow_html=True)
             else:
-                st.markdown(f'<div><div class="msg-agent-name">🤖 Amazon Business AI</div><div class="msg-agent">{msg["content"]}</div></div>', unsafe_allow_html=True)
+                for msg in st.session_state.messages:
+                    if msg["role"] == "user":
+                        st.markdown(f'<div class="msg-user">{msg["content"]}</div>', unsafe_allow_html=True)
+                    else:
+                        st.markdown(f'<div style="margin-bottom:6px"><div class="msg-agent-name">🤖 Amazon Business AI</div><div class="msg-agent">{msg["content"]}</div></div>', unsafe_allow_html=True)
 
-        # Quick prompts
-        if not st.session_state.messages:
-            st.caption("Try:")
-            for i, prompt in enumerate(QUICK_PROMPTS):
-                short = prompt[:75] + "…"
-                if st.button(short, key=f"qp_{i}", use_container_width=True):
-                    st.session_state["chat_prefill"] = prompt
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        if api_key:
+            st.markdown("<div style='margin-top:8px'>", unsafe_allow_html=True)
+            prefill  = st.session_state.pop("chat_prefill", "")
+            user_msg = st.text_area("", value=prefill, height=90,
+                                    placeholder="e.g. Nike, 5,000 employees, desks + chairs + monitors, $400/person",
+                                    label_visibility="collapsed", key="chat_msg")
+            st.markdown('<div class="chat-send-btn">', unsafe_allow_html=True)
+            send = st.button("Send ➤", key="send_chat", use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+
+            if st.session_state.messages:
+                if st.button("Clear chat", key="clear_chat", use_container_width=True):
+                    st.session_state.messages    = []
+                    st.session_state.ai_products = []
                     st.rerun()
 
-        # Input
-        prefill = st.session_state.pop("chat_prefill", "")
-        user_msg = st.text_area("Your message:", value=prefill, height=80,
-                                placeholder="e.g. Nike going remote, 5,000 employees, need desks and chairs, $400/person",
-                                label_visibility="collapsed", key="chat_msg")
+            st.markdown("</div>", unsafe_allow_html=True)
 
-        c_send, c_close = st.columns([3, 1])
-        send  = c_send.button("Send ➤", key="send_chat", use_container_width=True)
-        close = c_close.button("✕ Close", key="close_chat", use_container_width=True)
+            if send and user_msg.strip():
+                with st.spinner("Searching catalog…"):
+                    result = call_agent(
+                        client,
+                        st.session_state.messages,
+                        user_msg.strip(),
+                        catalog_ids,
+                        requirements,
+                    )
 
-        if close:
-            st.session_state.chat_open = False
-            st.rerun()
+                st.session_state.messages.append({"role": "user",     "content": user_msg.strip()})
+                st.session_state.messages.append({"role": "assistant", "content": result.get("message", "Let me find that.")})
 
-        if send and user_msg.strip():
-            with st.spinner("🤖 Searching catalog…"):
-                result = call_agent(
-                    client,
-                    st.session_state.messages,
-                    user_msg.strip(),
-                    st.session_state.catalog_ids,
-                    st.session_state.requirements,
-                )
+                if result.get("product_ids"):
+                    st.session_state.ai_products = result["product_ids"]
 
-            st.session_state.messages.append({"role": "user",      "content": user_msg.strip()})
-            st.session_state.messages.append({"role": "assistant",  "content": result.get("message", "Let me find that.")})
+                for pid in result.get("catalog_add", []):
+                    if pid not in st.session_state.catalog_ids:
+                        st.session_state.catalog_ids.append(pid)
+                        hc = (result.get("req_update") or {}).get("headcount") or requirements.get("headcount", 1) or 1
+                        st.session_state.qty_map[pid] = hc
 
-            if result.get("product_ids"):
-                st.session_state.ai_products = result["product_ids"]
+                for pid in result.get("catalog_remove", []):
+                    if pid in st.session_state.catalog_ids:
+                        st.session_state.catalog_ids.remove(pid)
 
-            for pid in result.get("catalog_add", []):
-                if pid not in st.session_state.catalog_ids:
-                    st.session_state.catalog_ids.append(pid)
-                    hc = result.get("req_update", {}).get("headcount") or st.session_state.requirements.get("headcount", 1) or 1
-                    st.session_state.qty_map[pid] = hc
-            for pid in result.get("catalog_remove", []):
-                if pid in st.session_state.catalog_ids:
-                    st.session_state.catalog_ids.remove(pid)
+                for k, v in (result.get("req_update") or {}).items():
+                    if v is not None:
+                        st.session_state.requirements[k] = v
 
-            req = result.get("req_update", {})
-            for k, v in (req or {}).items():
-                if v is not None:
-                    st.session_state.requirements[k] = v
+                hc = st.session_state.requirements.get("headcount", 1) or 1
+                for pid in st.session_state.catalog_ids:
+                    if pid not in st.session_state.qty_map:
+                        st.session_state.qty_map[pid] = hc
 
-            # Update qty_map with new headcount
-            hc = st.session_state.requirements.get("headcount", 1) or 1
-            for pid in st.session_state.catalog_ids:
-                if pid not in st.session_state.qty_map:
-                    st.session_state.qty_map[pid] = hc
-
-            st.rerun()
+                st.rerun()
 
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
@@ -797,17 +826,16 @@ def main():
 </div>
 """, unsafe_allow_html=True)
 
-    # API key (hidden in sidebar)
+    # API key in sidebar
     with st.sidebar:
         api_key = st.text_input("Anthropic API Key", type="password",
                                 help="Required for AI assistant. sk-ant-…",
                                 key="api_key_input")
         if not api_key:
-            st.caption("👆 Add your API key to activate the AI assistant.")
+            st.caption("👆 Add API key to activate the AI assistant.")
 
     client = anthropic.Anthropic(api_key=api_key) if api_key else None
 
-    # Tabs
     tab1, tab2 = st.tabs(["📖  What is Hosted Catalog?", "🛒  Browse & Build Catalog"])
 
     with tab1:
