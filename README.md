@@ -2,7 +2,7 @@
 
 A working demo of Agentic AI applied to enterprise B2B procurement. Built to showcase how AI can compress the Hosted Catalog creation process from **6–8 weeks to minutes**.
 
-**Live demo →** [ravriar29-procurement-governance-agent.streamlit.app](https://ravriar29-procurement-governance-agent.streamlit.app)
+**Live demo →** [procurement-governance-agent.streamlit.app](https://procurement-governance-agent-aseeuictethbaqyrxzblnf.streamlit.app)
 
 Built by [Rav Riar](https://github.com/ravriar29) · Sr PM Technical, Amazon Business
 
