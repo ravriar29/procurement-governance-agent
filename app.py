@@ -42,30 +42,39 @@ CATALOG_BY_ID = {p["id"]: p for p in CATALOG}
 ALL_CATEGORIES = sorted(set(p["category"] for p in CATALOG))
 
 QUICK_TEMPLATES = {
-    "🏠 WFH Setup": (
-        "WFH Scenario — please fill in your details:\n\n"
-        "Items needed: [e.g. desk, chair, monitor, keyboard & mouse, webcam]\n"
-        "Number of employees: [e.g. 500]\n"
-        "Budget per person: $[e.g. 400]\n"
-        "Shipping speed needed: [e.g. standard / within 30 days / urgent]\n"
-        "Anything else: [e.g. ergonomic preferred, no premium brands]"
-    ),
-    "🏥 Office / Facility": (
-        "Office/Facility Scenario — please fill in your details:\n\n"
-        "Items needed: [e.g. keyboards, webcams, headsets, office supplies]\n"
-        "Number of locations or employees: [e.g. 80 locations, 20 staff each]\n"
-        "Budget per person or per location: $[e.g. 150/person]\n"
-        "Shipping speed needed: [e.g. fast — within 2 weeks]\n"
-        "Anything else: [e.g. tight budget, telehealth stations]"
-    ),
-    "🚀 New Hire Onboarding": (
-        "New Hire Onboarding Scenario — please fill in your details:\n\n"
-        "Items needed: [e.g. laptop, monitor, docking station, keyboard & mouse]\n"
-        "Number of new hires: [e.g. 200 engineers]\n"
-        "Budget per person: $[e.g. 2500]\n"
-        "Shipping speed needed: [e.g. first 50 kits within 2 weeks]\n"
-        "Anything else: [e.g. prefer MacBook or Dell, all remote employees]"
-    ),
+    "🏠 WFH Setup": {
+        "text": (
+            "WFH Setup — fill in your details and hit Send:\n\n"
+            "Items needed: desk, chair, monitor, keyboard & mouse, webcam\n"
+            "Number of employees: [e.g. 500]\n"
+            "Budget per person: $[e.g. 400]\n"
+            "Shipping speed: [e.g. standard / within 30 days]\n"
+            "Anything else: [e.g. ergonomic preferred, no premium brands]"
+        ),
+        "categories": ["Desks", "Chairs", "Monitors", "Keyboards & Mice", "Webcams"],
+    },
+    "🗂️ Office Supplies": {
+        "text": (
+            "Office Supplies — fill in your details and hit Send:\n\n"
+            "Items needed: office supplies, keyboards, headsets, webcams\n"
+            "Number of locations or employees: [e.g. 10 offices, 25 staff each]\n"
+            "Budget per person or location: $[e.g. 150/person]\n"
+            "Shipping speed: [e.g. fast — within 2 weeks]\n"
+            "Anything else: [e.g. tight budget, need staplers/paper/pens too]"
+        ),
+        "categories": ["Office Supplies", "Keyboards & Mice", "Headsets", "Webcams"],
+    },
+    "🚀 New Hire Onboarding": {
+        "text": (
+            "New Hire Onboarding — fill in your details and hit Send:\n\n"
+            "Items needed: laptop, monitor, docking station, keyboard & mouse, webcam\n"
+            "Number of new hires: [e.g. 200 engineers]\n"
+            "Budget per person: $[e.g. 2500]\n"
+            "Shipping speed: [e.g. first 50 kits within 2 weeks]\n"
+            "Anything else: [e.g. prefer MacBook or Dell, fully remote employees]"
+        ),
+        "categories": ["Laptops", "Monitors", "Docking Stations", "Keyboards & Mice", "Webcams"],
+    },
 }
 
 # ─── CSS ─────────────────────────────────────────────────────────────────────
@@ -585,6 +594,7 @@ def page_browse(client, api_key):
     for key, default in [
         ("messages", []), ("catalog_ids", []), ("qty_map", {}),
         ("requirements", {}), ("ai_products", []), ("cart_ids", []),
+        ("scenario_cats", None), ("input_ver", 0), ("input_val", ""),
     ]:
         if key not in st.session_state:
             st.session_state[key] = default
@@ -652,7 +662,7 @@ def page_browse(client, api_key):
     # ── Product grid ──────────────────────────────────────────────────────
     with col_products:
         filtered = [p for p in CATALOG
-                    if p["category"] in selected_cats
+                    if p["category"] in (st.session_state.scenario_cats or selected_cats)
                     and p["unit_price"] <= max_price
                     and (not avail_only or p["availability"] == "available")]
 
@@ -742,16 +752,17 @@ def page_browse(client, api_key):
             if not st.session_state.messages:
                 st.markdown("""
 <div style="font-size:0.78rem;color:#555;line-height:1.5;margin-bottom:8px">
-  Tell me what your company needs, or pick a scenario to get started:
+  Tell me what your company needs, or pick a scenario:
 </div>""", unsafe_allow_html=True)
-                for i, (label, template) in enumerate(QUICK_TEMPLATES.items()):
+                for i, (label, tmpl) in enumerate(QUICK_TEMPLATES.items()):
                     st.markdown('<div class="catalog-btn">', unsafe_allow_html=True)
                     clicked = st.button(label, key=f"qp_{i}", use_container_width=True)
                     st.markdown("</div>", unsafe_allow_html=True)
                     if clicked:
-                        # Clear the widget so the new value takes effect
-                        st.session_state.pop("chat_msg", None)
-                        st.session_state["chat_prefill"] = template
+                        # Increment version forces a fresh text_area widget with new default value
+                        st.session_state.input_ver += 1
+                        st.session_state.input_val = tmpl["text"]
+                        st.session_state.scenario_cats = tmpl["categories"]
                         st.rerun()
             else:
                 for msg in st.session_state.messages:
@@ -764,20 +775,24 @@ def page_browse(client, api_key):
 
         if api_key:
             st.markdown("<div style='margin-top:8px'>", unsafe_allow_html=True)
-            prefill = st.session_state.pop("chat_prefill", None)
-            if prefill is not None:
-                st.session_state["chat_msg"] = prefill
+            # Versioned key = new widget instance each time a template is loaded
+            input_key = f"chat_msg_{st.session_state.input_ver}"
+            if input_key not in st.session_state:
+                st.session_state[input_key] = st.session_state.input_val
             user_msg = st.text_area("", height=160,
                                     placeholder="e.g. desks + chairs for 500 employees, $400/person, standard shipping",
-                                    label_visibility="collapsed", key="chat_msg")
+                                    label_visibility="collapsed", key=input_key)
             st.markdown('<div class="chat-send-btn">', unsafe_allow_html=True)
             send = st.button("Send ➤", key="send_chat", use_container_width=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
             if st.session_state.messages:
                 if st.button("Clear chat", key="clear_chat", use_container_width=True):
-                    st.session_state.messages    = []
-                    st.session_state.ai_products = []
+                    st.session_state.messages      = []
+                    st.session_state.ai_products   = []
+                    st.session_state.scenario_cats = None
+                    st.session_state.input_val     = ""
+                    st.session_state.input_ver    += 1
                     st.rerun()
 
             st.markdown("</div>", unsafe_allow_html=True)
