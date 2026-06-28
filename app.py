@@ -82,25 +82,19 @@ QUICK_TEMPLATES = {
 
 CSS = """
 <style>
-/* ── Global: Amazon Business light theme ── */
+/* ── Global ── */
 #MainMenu, footer, header {visibility: hidden;}
-.stApp { background: #F2F0EB !important; }
+.stApp { background: #fff !important; }
 .block-container { padding-top: 0 !important; max-width: 1300px !important; }
 
-/* ── Fix all Streamlit headings to be dark ── */
 h1, h2, h3, h4,
 .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4,
 [data-testid="stMarkdownContainer"] h1,
 [data-testid="stMarkdownContainer"] h2,
-[data-testid="stMarkdownContainer"] h3 {
-    color: #0F1111 !important;
-}
+[data-testid="stMarkdownContainer"] h3 { color: #0F1111 !important; }
 
-/* ── Sidebar (left filter panel) ── */
-section[data-testid="stSidebar"] {
-    background: #fff !important;
-    border-right: 1px solid #ddd !important;
-}
+/* ── Sidebar ── */
+section[data-testid="stSidebar"] { background: #fff !important; border-right: 1px solid #ddd !important; }
 section[data-testid="stSidebar"] p,
 section[data-testid="stSidebar"] label,
 section[data-testid="stSidebar"] .stMarkdown { color: #111 !important; }
@@ -108,43 +102,104 @@ section[data-testid="stSidebar"] h1,
 section[data-testid="stSidebar"] h2,
 section[data-testid="stSidebar"] h3 { color: #111 !important; }
 
-/* ── Top header bar ── */
+/* ── Disclaimer banner ── */
+.disclaimer-bar {
+    background: #FFF3CD;
+    border-bottom: 1px solid #FBBF24;
+    padding: 6px 16px;
+    font-size: 0.72rem;
+    color: #78350F;
+    text-align: center;
+    line-height: 1.4;
+}
+
+/* ── Amazon Business header (matches real AB: #131921 dark) ── */
 .amzb-header {
-    background: #fff;
-    border-bottom: 1px solid #ddd;
-    padding: 10px 0 8px 0;
-    margin-bottom: 0;
+    background: #131921;
+    padding: 8px 16px;
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
+    border-bottom: 1px solid #3a4553;
 }
-.amzb-logo {
-    font-size: 1.5rem;
+.amzb-logo-wrap { display: flex; flex-direction: column; gap: 0; line-height: 1; flex-shrink: 0; }
+.amzb-logo-text {
+    font-size: 1.35rem;
     font-weight: 900;
-    letter-spacing: -1px;
-    color: #000;
+    color: #fff;
+    letter-spacing: -0.5px;
+    font-family: "Amazon Ember", Arial, sans-serif;
 }
-.amzb-logo-orange { color: #E47911; }
-.amzb-logo-biz { font-size: 0.65rem; color: #E47911; font-weight: 700; letter-spacing: 1px; display: block; margin-top: -4px; }
-.amzb-tagline { font-size: 0.78rem; color: #555; }
+.amzb-logo-smile { color: #FF9900; font-size: 0.7rem; margin-top: -3px; }
+.amzb-logo-biz-tag { font-size: 0.62rem; color: #FF9900; font-weight: 700; letter-spacing: 0.5px; margin-top: -2px; }
+.amzb-location { font-size: 0.68rem; color: #ccc; margin-left: 4px; }
+.amzb-location strong { color: #fff; font-size: 0.78rem; display: block; }
+.amzb-search {
+    flex: 1;
+    display: flex;
+    background: #fff;
+    border-radius: 4px;
+    overflow: hidden;
+    height: 36px;
+}
+.amzb-search-cat {
+    background: #e3e6e6;
+    border: none;
+    padding: 0 8px;
+    font-size: 0.75rem;
+    color: #111;
+    border-right: 1px solid #ccc;
+    cursor: pointer;
+}
+.amzb-search-input {
+    flex: 1;
+    border: none;
+    padding: 0 12px;
+    font-size: 0.85rem;
+    color: #111;
+    outline: none;
+}
+.amzb-search-btn {
+    background: #FF9900;
+    border: none;
+    padding: 0 14px;
+    cursor: pointer;
+    font-size: 1rem;
+    color: #111;
+}
+.amzb-header-right { display: flex; gap: 16px; align-items: center; margin-left: auto; flex-shrink: 0; }
+.amzb-header-link { color: #fff; font-size: 0.75rem; text-align: center; cursor: pointer; }
+.amzb-header-link small { display: block; font-size: 0.65rem; color: #ccc; }
+.amzb-header-link strong { font-size: 0.8rem; }
+.amzb-cart { position: relative; color: #fff; font-size: 0.8rem; cursor: pointer; }
+.amzb-cart-count { position: absolute; top: -6px; right: -4px; background: #FF9900; color: #111; font-size: 0.65rem; font-weight: 800; border-radius: 50%; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; }
 
-/* ── Orange nav strip ── */
+/* ── Amazon Business nav bar (matches real AB: #232F3E) ── */
 .amzb-nav {
     background: #232F3E;
-    padding: 7px 16px;
-    font-size: 0.8rem;
+    padding: 5px 16px;
+    font-size: 0.78rem;
     color: #ddd;
     display: flex;
-    gap: 24px;
-    margin-bottom: 0;
+    gap: 0;
+    align-items: center;
+    flex-wrap: nowrap;
+    overflow: hidden;
 }
-.amzb-nav a { color: #ddd !important; text-decoration: none; }
-.amzb-nav a:hover { color: #FF9900 !important; }
+.amzb-nav a {
+    color: #ddd !important;
+    text-decoration: none;
+    padding: 5px 10px;
+    border-radius: 2px;
+    white-space: nowrap;
+}
+.amzb-nav a:hover { color: #fff !important; border: 1px solid #fff; }
+.amzb-nav a.active { color: #fff !important; font-weight: 600; }
 
 /* ── Page tabs ── */
 .stTabs [data-baseweb="tab-list"] {
     background: #fff;
-    border-bottom: 2px solid #e47911;
+    border-bottom: 2px solid #E47911;
     gap: 0;
 }
 .stTabs [data-baseweb="tab"] {
@@ -633,8 +688,8 @@ def page_browse(client, api_key):
                 st.markdown(f'<div class="cat-item"><div class="cat-item-name">{prod["img"]} {short}</div><div class="cat-item-price">${line:,.0f}</div></div>', unsafe_allow_html=True)
             st.markdown(f'<div class="cat-total"><span>Cart Total</span><span style="color:#B12704">${cart_total:,.0f}</span></div>', unsafe_allow_html=True)
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("Proceed to Checkout →", use_container_width=True):
-                st.success("Redirecting to Amazon Business checkout…")
+            if st.button("Submit items for approval →", use_container_width=True):
+                st.success("✅ Your cart has been submitted to your organization's purchasing system for approval.")
             st.markdown("---")
 
         # Catalog summary
@@ -695,19 +750,19 @@ def page_browse(client, api_key):
                     in_cart    = pid in st.session_state.cart_ids
                     qty        = qty_map.get(pid, headcount)
 
-                    avail_html = '<div class="prod-avail-yes">✓ In Stock</div>' if prod["availability"] == "available" else '<div class="prod-avail-sourcing">⏳ Needs Sourcing</div>'
-                    lead_html  = f'<div style="font-size:0.7rem;color:#666">Ships in {prod["lead_days"]} days</div>' if prod.get("lead_days") else '<div style="font-size:0.7rem;color:#B7791F">Contact vendor for availability</div>'
+                    avail_html = '<span style="color:#007600;font-size:0.75rem;font-weight:600">In Stock</span>' if prod["availability"] == "available" else '<span style="color:#B7791F;font-size:0.75rem;font-weight:600">Contact vendor for availability</span>'
+                    delivery   = f'FREE delivery <strong>within {prod["lead_days"]} business days</strong>' if prod.get("lead_days") else '<span style="color:#B7791F">Estimated delivery depends on approval</span>'
 
                     st.markdown(f"""
 <div class="prod-card">
   <div class="prod-img-box">{prod['img']}</div>
   <div class="prod-title">{prod['title']}</div>
-  <div class="prod-stars">{stars_html(prod['rating'])}</div>
-  <div class="prod-reviews">{prod['reviews']:,} business ratings</div>
-  <div style="margin:6px 0"><span class="prod-bizprice-label">Business Price</span></div>
-  <div class="prod-price">${prod['unit_price']:,.2f} <span class="prod-per-unit">/ unit</span></div>
-  <div style="font-size:0.72rem;color:#555;margin-bottom:4px">×{qty:,} = ${prod['unit_price']*qty:,.0f} total</div>
-  {avail_html}{lead_html}
+  <div class="prod-stars">{stars_html(prod['rating'])} <span style="color:#007185;font-size:0.73rem">{prod['reviews']:,}</span></div>
+  <div style="margin:5px 0 2px"><span class="prod-bizprice-label">Business Price</span></div>
+  <div class="prod-price"><sup style="font-size:0.7rem;vertical-align:super">$</sup>{int(prod['unit_price'])}<sup style="font-size:0.7rem;vertical-align:super">{int(round((prod['unit_price'] % 1)*100)):02d}</sup> <span class="prod-per-unit">USD / unit</span></div>
+  <div style="font-size:0.72rem;color:#555;margin:2px 0">×{qty:,} units = <strong>${prod['unit_price']*qty:,.2f} USD</strong></div>
+  <div style="font-size:0.72rem;margin:3px 0">{avail_html}</div>
+  <div style="font-size:0.72rem;color:#555;margin-bottom:4px">{delivery}</div>
 </div>""", unsafe_allow_html=True)
 
                     # Add to Cart (primary yellow button)
@@ -849,22 +904,52 @@ def main():
     )
     st.markdown(CSS, unsafe_allow_html=True)
 
-    # Header
+    # Disclaimer
     st.markdown("""
+<div class="disclaimer-bar">
+  ⚠️ <strong>Portfolio Demo — Not an official Amazon product.</strong>
+  This is an independent demonstration built by Rav Riar to illustrate AI-assisted B2B procurement concepts.
+  It is not affiliated with or endorsed by Amazon. All product data and pricing are simulated for demonstration purposes only.
+</div>""", unsafe_allow_html=True)
+
+    # Amazon Business header (matching real AB UI)
+    cart_count = len(st.session_state.get("cart_ids", []))
+    st.markdown(f"""
 <div class="amzb-header">
-  <div>
-    <span class="amzb-logo">amazon<span class="amzb-logo-orange">business</span></span>
-    <span class="amzb-logo-biz">HOSTED CATALOG AI</span>
+  <div class="amzb-logo-wrap">
+    <span class="amzb-logo-text">amazon</span>
+    <span class="amzb-logo-smile">▔▔▔▔▔↗</span>
+    <span class="amzb-logo-biz-tag">business</span>
   </div>
-  <div class="amzb-tagline">Build your company's approved purchasing catalog — powered by AI</div>
+  <div class="amzb-location">
+    Deliver to Rav<br><strong>Kirkland 98034</strong>
+  </div>
+  <div class="amzb-search">
+    <select class="amzb-search-cat"><option>All</option></select>
+    <input class="amzb-search-input" placeholder="Enter keyword or product number" />
+    <button class="amzb-search-btn">🔍</button>
+  </div>
+  <div class="amzb-header-right">
+    <div class="amzb-header-link"><small>Hello, Rav</small><strong>Account &amp; Lists ▾</strong></div>
+    <div class="amzb-header-link"><small>Returns</small><strong>&amp; Orders</strong></div>
+    <div class="amzb-header-link">Try<br><strong>Business Prime</strong></div>
+    <div class="amzb-cart">🛒 <span style="font-size:1rem;font-weight:700">Cart</span>
+      <span class="amzb-cart-count">{cart_count}</span>
+    </div>
+  </div>
 </div>
 <div class="amzb-nav">
-  <a href="#">Solutions</a>
-  <a href="#">Supplies</a>
-  <a href="#">Delivery</a>
-  <a href="#">Industries</a>
-  <a href="#">Prime Business</a>
-  <a href="#" style="color:#E47911;font-weight:700">✨ Catalog AI</a>
+  <a href="#">☰ Departments</a>
+  <a href="#">Top Reviewed Products ▾</a>
+  <a href="#">Add People</a>
+  <a href="#" class="active">Your Catalog</a>
+  <a href="#">Buy Again</a>
+  <a href="#">Quantity Discounts</a>
+  <a href="#">PPE for Work</a>
+  <a href="#">Gift Cards</a>
+  <a href="#">Recommendations ▾</a>
+  <a href="#">Today's Deals</a>
+  <a href="#">Savings Hub</a>
 </div>
 """, unsafe_allow_html=True)
 
