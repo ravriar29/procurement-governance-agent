@@ -721,16 +721,32 @@ def page_browse(client, api_key):
             if not st.session_state.messages:
                 st.markdown("""
 <div style="font-size:0.78rem;color:#555;line-height:1.5;margin-bottom:10px">
-  Tell me what your company needs — employees, categories, budget, timeline — and I'll find the right items.
+  Tell me what your company needs — or try a scenario:
 </div>""", unsafe_allow_html=True)
-                # Quick prompts
-                for i, prompt in enumerate(QUICK_PROMPTS):
-                    label = ["🏃 Nike WFH", "🏥 Hospital", "🚀 Tech Startup"][i]
+                # Quick prompts — clicking immediately sends to agent
+                labels = ["🏃 Nike WFH", "🏥 Hospital", "🚀 Tech Startup"]
+                for i, (label, prompt) in enumerate(zip(labels, QUICK_PROMPTS)):
                     st.markdown('<div class="catalog-btn">', unsafe_allow_html=True)
-                    if st.button(label, key=f"qp_{i}", use_container_width=True):
-                        st.session_state["chat_prefill"] = prompt
-                        st.rerun()
+                    clicked = st.button(label, key=f"qp_{i}", use_container_width=True)
                     st.markdown("</div>", unsafe_allow_html=True)
+                    if clicked:
+                        with st.spinner("Searching catalog…"):
+                            result = call_agent(client, [], prompt, catalog_ids, requirements)
+                        st.session_state.messages.append({"role": "user",      "content": prompt})
+                        st.session_state.messages.append({"role": "assistant",  "content": result.get("message", "Here's what I found.")})
+                        if result.get("product_ids"):
+                            st.session_state.ai_products = result["product_ids"]
+                        for pid in result.get("catalog_add", []):
+                            if pid not in st.session_state.catalog_ids:
+                                st.session_state.catalog_ids.append(pid)
+                        for k, v in (result.get("req_update") or {}).items():
+                            if v is not None:
+                                st.session_state.requirements[k] = v
+                        hc = st.session_state.requirements.get("headcount", 1) or 1
+                        for pid in st.session_state.catalog_ids:
+                            if pid not in st.session_state.qty_map:
+                                st.session_state.qty_map[pid] = hc
+                        st.rerun()
             else:
                 for msg in st.session_state.messages:
                     if msg["role"] == "user":
