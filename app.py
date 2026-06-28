@@ -41,11 +41,32 @@ CATALOG = [
 CATALOG_BY_ID = {p["id"]: p for p in CATALOG}
 ALL_CATEGORIES = sorted(set(p["category"] for p in CATALOG))
 
-QUICK_PROMPTS = [
-    "Nike is going fully remote for 5,000 employees. Need desks, ergonomic chairs, monitors, keyboard & mouse, and webcams. Budget $400/person. Standard options. 60 days.",
-    "Hospital network, 80 locations, ~20 staff each. Need keyboards, webcams for telehealth stations, headsets for admin. Tight budget, fast shipping critical.",
-    "Tech startup hiring 200 engineers over 3 months. Need laptops (MacBook or Dell), monitors, docking stations. $2,500/person. First 50 sets within 2 weeks.",
-]
+QUICK_TEMPLATES = {
+    "🏠 WFH Setup": (
+        "WFH Scenario — please fill in your details:\n\n"
+        "Items needed: [e.g. desk, chair, monitor, keyboard & mouse, webcam]\n"
+        "Number of employees: [e.g. 500]\n"
+        "Budget per person: $[e.g. 400]\n"
+        "Shipping speed needed: [e.g. standard / within 30 days / urgent]\n"
+        "Anything else: [e.g. ergonomic preferred, no premium brands]"
+    ),
+    "🏥 Office / Facility": (
+        "Office/Facility Scenario — please fill in your details:\n\n"
+        "Items needed: [e.g. keyboards, webcams, headsets, office supplies]\n"
+        "Number of locations or employees: [e.g. 80 locations, 20 staff each]\n"
+        "Budget per person or per location: $[e.g. 150/person]\n"
+        "Shipping speed needed: [e.g. fast — within 2 weeks]\n"
+        "Anything else: [e.g. tight budget, telehealth stations]"
+    ),
+    "🚀 New Hire Onboarding": (
+        "New Hire Onboarding Scenario — please fill in your details:\n\n"
+        "Items needed: [e.g. laptop, monitor, docking station, keyboard & mouse]\n"
+        "Number of new hires: [e.g. 200 engineers]\n"
+        "Budget per person: $[e.g. 2500]\n"
+        "Shipping speed needed: [e.g. first 50 kits within 2 weeks]\n"
+        "Anything else: [e.g. prefer MacBook or Dell, all remote employees]"
+    ),
+}
 
 # ─── CSS ─────────────────────────────────────────────────────────────────────
 
@@ -720,32 +741,17 @@ def page_browse(client, api_key):
             # Chat messages
             if not st.session_state.messages:
                 st.markdown("""
-<div style="font-size:0.78rem;color:#555;line-height:1.5;margin-bottom:10px">
-  Tell me what your company needs — or try a scenario:
+<div style="font-size:0.78rem;color:#555;line-height:1.5;margin-bottom:8px">
+  Tell me what your company needs, or pick a scenario to get started:
 </div>""", unsafe_allow_html=True)
-                # Quick prompts — clicking immediately sends to agent
-                labels = ["🏃 Nike WFH", "🏥 Hospital", "🚀 Tech Startup"]
-                for i, (label, prompt) in enumerate(zip(labels, QUICK_PROMPTS)):
+                for i, (label, template) in enumerate(QUICK_TEMPLATES.items()):
                     st.markdown('<div class="catalog-btn">', unsafe_allow_html=True)
                     clicked = st.button(label, key=f"qp_{i}", use_container_width=True)
                     st.markdown("</div>", unsafe_allow_html=True)
                     if clicked:
-                        with st.spinner("Searching catalog…"):
-                            result = call_agent(client, [], prompt, catalog_ids, requirements)
-                        st.session_state.messages.append({"role": "user",      "content": prompt})
-                        st.session_state.messages.append({"role": "assistant",  "content": result.get("message", "Here's what I found.")})
-                        if result.get("product_ids"):
-                            st.session_state.ai_products = result["product_ids"]
-                        for pid in result.get("catalog_add", []):
-                            if pid not in st.session_state.catalog_ids:
-                                st.session_state.catalog_ids.append(pid)
-                        for k, v in (result.get("req_update") or {}).items():
-                            if v is not None:
-                                st.session_state.requirements[k] = v
-                        hc = st.session_state.requirements.get("headcount", 1) or 1
-                        for pid in st.session_state.catalog_ids:
-                            if pid not in st.session_state.qty_map:
-                                st.session_state.qty_map[pid] = hc
+                        # Clear the widget so the new value takes effect
+                        st.session_state.pop("chat_msg", None)
+                        st.session_state["chat_prefill"] = template
                         st.rerun()
             else:
                 for msg in st.session_state.messages:
@@ -758,9 +764,11 @@ def page_browse(client, api_key):
 
         if api_key:
             st.markdown("<div style='margin-top:8px'>", unsafe_allow_html=True)
-            prefill  = st.session_state.pop("chat_prefill", "")
-            user_msg = st.text_area("", value=prefill, height=90,
-                                    placeholder="e.g. Nike, 5,000 employees, desks + chairs + monitors, $400/person",
+            prefill = st.session_state.pop("chat_prefill", None)
+            if prefill is not None:
+                st.session_state["chat_msg"] = prefill
+            user_msg = st.text_area("", height=160,
+                                    placeholder="e.g. desks + chairs for 500 employees, $400/person, standard shipping",
                                     label_visibility="collapsed", key="chat_msg")
             st.markdown('<div class="chat-send-btn">', unsafe_allow_html=True)
             send = st.button("Send ➤", key="send_chat", use_container_width=True)
